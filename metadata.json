@@ -1,0 +1,8 @@
+{
+  "name": "Conveniência do Alan",
+  "description": "App de delivery de bebidas com painel administrativo e finalização via WhatsApp.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}

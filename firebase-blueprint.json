@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A single drink or beverage product.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Product name" },
+        "category": { "type": "string", "description": "Beer, Soda, Water, etc." },
+        "imageUrl": { "type": "string", "description": "URL to product image" },
+        "priceNatural": { "type": "number", "description": "Price for room temperature" },
+        "priceCold": { "type": "number", "description": "Price for cold product" },
+        "packQuantity": { "type": "number", "description": "Number of units in a pack" },
+        "pricePackNatural": { "type": "number", "description": "Price for a natural pack" },
+        "pricePackCold": { "type": "number", "description": "Price for a cold pack" },
+        "isCombo": { "type": "boolean", "description": "Whether this is a combo" }
+      },
+      "required": ["name", "priceNatural", "priceCold"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global application settings.",
+      "type": "object",
+      "properties": {
+        "storeName": { "type": "string" },
+        "whatsappNumber": { "type": "string" },
+        "minOrder": { "type": "number", "description": "Minimum order amount" },
+        "logoUrl": { "type": "string", "description": "URL to store logo" },
+        "deliveryFee": { "type": "number", "description": "Standard delivery fee amount" },
+        "freeDeliveryThreshold": { "type": "number", "description": "Order amount threshold for free delivery" }
+      }
+    },
+    "Banner": {
+      "title": "Banner",
+      "description": "Promotional banner or advertisement.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "link": { "type": "string" }
+      },
+      "required": ["title", "imageUrl"]
+    },
+    "Combo": {
+      "title": "Combo",
+      "description": "A promotional bundle of products.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "productIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["name", "price", "productIds"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Collection of available products."
+    },
+    "/settings/config": {
+      "schema": "Settings",
+      "description": "Global configuration document."
+    },
+    "/combos/{comboId}": {
+      "schema": "Combo",
+      "description": "Collection of promotional combos."
+    },
+    "/banners/{bannerId}": {
+      "schema": "Banner",
+      "description": "Collection of promotional banners."
+    }
+  }
+}
