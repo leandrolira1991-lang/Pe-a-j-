@@ -11,7 +11,7 @@ import { ImageUpload } from './components/ImageUpload';
 
 // --- Components ---
 
-function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName, logoUrl, onShowLogin, user, isAdmin }: { 
+function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName, logoUrl, onShowLogin, user, isAdmin, onGoogleLogin }: { 
   cartCount: number; 
   onOpenCart: () => void; 
   isAdminPanel: boolean;
@@ -21,6 +21,7 @@ function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName,
   onShowLogin: () => void;
   user: User | null;
   isAdmin: boolean;
+  onGoogleLogin: () => void;
 }) {
   const [clickCount, setClickCount] = useState(0);
   const handleLogout = () => signOut(auth);
@@ -84,13 +85,23 @@ function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName,
             </div>
           )}
 
-          {!isAdmin && (
-            <button 
-              onClick={onShowLogin}
-              className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase text-white/50 hover:bg-white/10 transition-all"
-            >
-              Admin
-            </button>
+          {!user && (
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={onShowLogin}
+                className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase text-white/50 hover:bg-white/10 transition-all sm:block hidden"
+              >
+                Admin
+              </button>
+              <button 
+                onClick={onGoogleLogin}
+                className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 px-3"
+                title="Sincronizar com Google"
+              >
+                <img src="https://www.google.com/favicon.ico" className="w-4 h-4 grayscale opacity-50 group-hover:opacity-100" />
+                <span className="text-[10px] font-black uppercase text-white/30 hidden sm:inline">Google</span>
+              </button>
+            </div>
           )}
 
           {!isAdminPanel && (
@@ -1526,7 +1537,7 @@ function PromotionsCarousel({ banners }: { banners: Banner[] }) {
   );
 }
 
-function LoginModal({ onClose }: { onClose: () => void }) {
+function LoginModal({ onClose, onGoogleLogin }: { onClose: () => void; onGoogleLogin: () => void }) {
   const [email, setEmail] = useState(() => localStorage.getItem('admin_email') || 'leandrolira1991@gmail.com');
   const [password, setPassword] = useState(() => localStorage.getItem('admin_pass') || '12345');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -1589,18 +1600,7 @@ function LoginModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-      onClose();
-    } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/cancelled-popup-request' || err.code === 'auth/popup-closed-by-user') {
-        return; // Ignore user cancellation
-      }
-      setError('Erro ao entrar com Google. Verifique se os popups estão permitidos.');
-    }
-  };
+  const handleGoogleLogin = onGoogleLogin;
 
   return (
     <motion.div 
@@ -1753,6 +1753,19 @@ export default function App() {
   
   const isAdmin = user && ADMIN_EMAILS.includes(user.email || '');
   const [loading, setLoading] = useState(true);
+
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      setIsLoginOpen(false);
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/cancelled-popup-request' || err.code === 'auth/popup-closed-by-user') {
+        return; // Ignore user cancellation
+      }
+      alert('Erro ao entrar com Google. Verifique se os popups estão permitidos.');
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -1907,6 +1920,7 @@ export default function App() {
         onShowLogin={() => setIsLoginOpen(true)}
         user={user}
         isAdmin={isAdmin}
+        onGoogleLogin={handleGoogleLogin}
       />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
@@ -2092,7 +2106,7 @@ export default function App() {
           />
         )}
         {isLoginOpen && (
-          <LoginModal onClose={() => setIsLoginOpen(false)} />
+          <LoginModal onClose={() => setIsLoginOpen(false)} onGoogleLogin={handleGoogleLogin} />
         )}
       </AnimatePresence>
 
