@@ -1573,7 +1573,9 @@ function LoginModal({ onClose }: { onClose: () => void }) {
       onClose();
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+      if (err.code === 'auth/operation-not-allowed') {
+        setError('Erro: O login por e-mail precisa ser ativado no Console do Firebase (Authentication > Sign-in method).');
+      } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setError('Login ou senha inválidos.');
       } else if (err.code === 'auth/email-already-in-use') {
         setError('Este usuário já está em uso.');
@@ -1591,8 +1593,12 @@ function LoginModal({ onClose }: { onClose: () => void }) {
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      if (err.code === 'auth/cancelled-popup-request' || err.code === 'auth/popup-closed-by-user') {
+        return; // Ignore user cancellation
+      }
+      setError('Erro ao entrar com Google. Verifique se os popups estão permitidos.');
     }
   };
 
