@@ -1,9 +1,9 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingCart, LogIn, Plus, LogOut, Package, Trash2, Edit2, MapPin, User as UserIcon, Phone, Home, CheckCircle2, Settings as SettingsIcon } from 'lucide-react';
+import { ShoppingCart, LogIn, Plus, LogOut, Package, Trash2, Edit2, MapPin, User as UserIcon, Phone, Home, CheckCircle2, Settings as SettingsIcon, X, Eye, EyeOff } from 'lucide-react';
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from './lib/firebase';
-import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { Product, CartItem, Customer, AppSettings, Combo, Banner } from './types';
 import { cn, formatCurrency, getWhatsAppUrl } from './lib/utils';
 import * as XLSX from 'xlsx';
@@ -11,38 +11,46 @@ import { ImageUpload } from './components/ImageUpload';
 
 // --- Components ---
 
-function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName, logoUrl }: { 
+function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName, logoUrl, onShowLogin, user }: { 
   cartCount: number; 
   onOpenCart: () => void; 
   isAdminPanel: boolean;
   onToggleAdmin: () => void;
   storeName: string;
   logoUrl?: string;
+  onShowLogin: () => void;
+  user: User | null;
 }) {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    return onAuthStateChanged(auth, (u) => setUser(u));
-  }, []);
-
-  const handleLogin = async () => {
-    try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-    } catch (error) {
-      console.error("Login failed", error);
-    }
-  };
-
+  const [clickCount, setClickCount] = useState(0);
   const handleLogout = () => signOut(auth);
 
   const nameParts = storeName.split(' ');
   const lastPart = nameParts.pop();
   const rest = nameParts.join(' ');
 
+  const handleLogoClick = () => {
+    if (user) {
+      if (!isAdminPanel) window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    
+    setClickCount(prev => {
+      const next = prev + 1;
+      if (next >= 5) {
+        onShowLogin();
+        return 0;
+      }
+      return next;
+    });
+
+    // Reset counter after 2 seconds of inactivity
+    setTimeout(() => setClickCount(0), 2000);
+  };
+
   return (
     <nav className="sticky top-0 z-50 bg-bg-sidebar border-b border-white/10 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => !isAdminPanel && window.scrollTo({ top: 0, behavior: 'smooth' })}>
+        <div className="flex items-center gap-3 cursor-pointer" onClick={handleLogoClick}>
           {logoUrl ? (
             <img src={logoUrl} alt={storeName} className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
           ) : (
@@ -56,7 +64,7 @@ function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName,
         </div>
 
         <div className="flex items-center gap-4">
-          {user ? (
+          {user && (
             <div className="flex items-center gap-2">
               <button 
                 onClick={onToggleAdmin}
@@ -71,11 +79,6 @@ function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName,
                 <LogOut size={20} />
               </button>
             </div>
-          ) : (
-            <button onClick={handleLogin} className="flex items-center gap-2 text-xs font-bold uppercase text-white/70 hover:text-white transition-colors">
-              <LogIn size={18} />
-              <span>Entrar</span>
-            </button>
           )}
 
           {!isAdminPanel && (
@@ -1443,9 +1446,159 @@ function PromotionsCarousel({ banners }: { banners: Banner[] }) {
   );
 }
 
+function LoginModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleLogin = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      if (isSignUp) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+      onClose();
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('E-mail ou senha inválidos.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError('Este e-mail já está em uso.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('A senha deve ter pelo menos 6 caracteres.');
+      } else {
+        setError('Ocorreu um erro ao tentar entrar. Tente novamente.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      onClose();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-bg-sidebar w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/10"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="p-8">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">
+                {isSignUp ? 'Criar Conta' : 'Página do Admin'}
+              </h2>
+              <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mt-1">Acesso Restrito</p>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors text-white/30 hover:text-white">
+              <X size={20} />
+            </button>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-white/30 ml-4 tracking-widest">E-mail</label>
+              <input 
+                type="email" 
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-brand-primary outline-none transition-all placeholder:text-white/10"
+                placeholder="seu@email.com"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-white/30 ml-4 tracking-widest">Senha</label>
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-brand-primary outline-none transition-all placeholder:text-white/10 pr-12"
+                  placeholder="••••••••"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest text-center py-2 bg-red-500/10 rounded-xl">
+                {error}
+              </p>
+            )}
+
+            <button 
+              type="submit"
+              disabled={loading}
+              className="w-full bg-brand-primary text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              {loading ? 'Aguarde...' : (isSignUp ? 'Cadastrar' : 'Entrar')}
+            </button>
+          </form>
+
+          <div className="mt-6 flex items-center gap-4">
+            <div className="h-[1px] flex-1 bg-white/5"></div>
+            <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Ou entre com</span>
+            <div className="h-[1px] flex-1 bg-white/5"></div>
+          </div>
+
+          <button 
+            onClick={handleGoogleLogin}
+            className="w-full mt-6 bg-white/5 border border-white/10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-white/10 transition-all"
+          >
+            <img src="https://www.google.com/favicon.ico" className="w-4 h-4 grayscale" />
+            Google
+          </button>
+
+          <p className="mt-8 text-center text-[10px] font-bold text-white/20 uppercase tracking-widest">
+            {isSignUp ? 'Já tem uma conta?' : 'Não tem uma conta?'}
+            <button 
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="ml-2 text-brand-primary hover:underline"
+            >
+              {isSignUp ? 'Entrar' : 'Cadastrar'}
+            </button>
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // --- Main App ---
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -1470,8 +1623,19 @@ export default function App() {
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
   const [isAdminPanel, setIsAdminPanel] = useState(false);
   const [activeCategory, setActiveCategory] = useState('Todas');
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
   
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      if (!u) {
+        setIsAdminPanel(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const seedProducts = async () => {
     const beers = [
@@ -1603,10 +1767,12 @@ export default function App() {
         onToggleAdmin={() => setIsAdminPanel(!isAdminPanel)}
         storeName={settings.storeName}
         logoUrl={settings.logoUrl}
+        onShowLogin={() => setIsLoginOpen(true)}
+        user={user}
       />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {isAdminPanel ? (
+        {(isAdminPanel && user) ? (
           <AdminPanel 
             products={products} 
             combos={combos}
@@ -1786,6 +1952,9 @@ export default function App() {
             onClose={() => setSelectedCombo(null)}
             onAddToCart={addComboToCart}
           />
+        )}
+        {isLoginOpen && (
+          <LoginModal onClose={() => setIsLoginOpen(false)} />
         )}
       </AnimatePresence>
 
