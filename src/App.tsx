@@ -581,14 +581,21 @@ function AdminPanel({ products, combos, banners, settings, onUpdateSettings, onS
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     try {
+      // Create a copy without the id for the document data
+      const { id, ...restOfData } = formData;
+      
       const dataToSave = {
-        ...formData,
-        priceNatural: Number(formData.priceNatural) || 0,
-        priceCold: Number(formData.priceCold) || 0,
-        priceHot: Number(formData.priceHot) || 0,
-        packQuantity: Number(formData.packQuantity) || 0,
-        pricePackNatural: Number(formData.pricePackNatural) || 0,
-        pricePackCold: Number(formData.pricePackCold) || 0,
+        ...restOfData,
+        name: restOfData.name || '',
+        category: restOfData.category || 'Cerveja',
+        imageUrl: restOfData.imageUrl || '',
+        priceNatural: Number(restOfData.priceNatural) || 0,
+        priceCold: Number(restOfData.priceCold) || 0,
+        priceHot: Number(restOfData.priceHot) || 0,
+        packQuantity: Number(restOfData.packQuantity) || 0,
+        pricePackNatural: Number(restOfData.pricePackNatural) || 0,
+        pricePackCold: Number(restOfData.pricePackCold) || 0,
+        isCombo: !!restOfData.isCombo
       };
 
       if (editingProduct) {
@@ -602,7 +609,7 @@ function AdminPanel({ products, combos, banners, settings, onUpdateSettings, onS
       alert("Produto salvo com sucesso!");
     } catch (err) {
       console.error(err);
-      alert("Erro ao salvar o produto.");
+      alert("Erro ao salvar o produto. Verifique sua conexão ou se você tem permissão de administrador.");
     }
   };
 
@@ -616,32 +623,54 @@ function AdminPanel({ products, combos, banners, settings, onUpdateSettings, onS
   const handleComboSubmit = async (e: FormEvent) => {
     e.preventDefault();
     try {
+      const { id, ...restOfData } = comboFormData;
+      const dataToSave = {
+        ...restOfData,
+        name: restOfData.name || '',
+        description: restOfData.description || '',
+        price: Number(restOfData.price) || 0,
+        imageUrl: restOfData.imageUrl || '',
+        productIds: restOfData.productIds || []
+      };
+
       if (editingCombo) {
-        await updateDoc(doc(db, 'combos', editingCombo.id), comboFormData);
+        await updateDoc(doc(db, 'combos', editingCombo.id), dataToSave);
       } else {
-        await addDoc(collection(db, 'combos'), comboFormData);
+        await addDoc(collection(db, 'combos'), dataToSave);
       }
       setIsAdding(false);
       setEditingCombo(null);
       setComboFormData({ name: '', description: '', price: 0, imageUrl: '', productIds: [] });
-    } catch (e) {
-      console.error(e);
+      alert("Combo salvo com sucesso!");
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao salvar o combo. Verifique sua conexão ou se você tem permissão de administrador.");
     }
   };
 
   const handleBannerSubmit = async (e: FormEvent) => {
     e.preventDefault();
     try {
+      const { id, ...restOfData } = bannerFormData;
+      const dataToSave = {
+        ...restOfData,
+        title: restOfData.title || '',
+        imageUrl: restOfData.imageUrl || '',
+        link: restOfData.link || ''
+      };
+
       if (editingBanner) {
-        await updateDoc(doc(db, 'banners', editingBanner.id), bannerFormData);
+        await updateDoc(doc(db, 'banners', editingBanner.id), dataToSave);
       } else {
-        await addDoc(collection(db, 'banners'), bannerFormData);
+        await addDoc(collection(db, 'banners'), dataToSave);
       }
       setIsAdding(false);
       setEditingBanner(null);
       setBannerFormData({ title: '', imageUrl: '', link: '' });
-    } catch (e) {
-      console.error(e);
+      alert("Propaganda salva com sucesso!");
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao salvar a propaganda. Verifique sua conexão ou se você tem permissão de administrador.");
     }
   };
 
@@ -1501,34 +1530,34 @@ function LoginModal({ onClose }: { onClose: () => void }) {
     setLoading(true);
     setError('');
 
-    // Handle local 'admin' login
-    if (!isSignUp && email === 'admin' && password === '12345') {
-      // We'll use a mock user if using local admin credentials
-      onClose();
-      // App component will handle the state via onAuthStateChanged or we can force it
-      // Actually we need to inform App that we are logged in as admin
-      // Since App uses onAuthStateChanged, we might need a custom setter or use a special email for Firebase
-      // Let's try to sign in with a "virtual" admin email to keep Firebase logic intact if possible
-      // but the user wants "admin" as login string.
-      // Easiest is to allow App to accept a simple object.
-      window.dispatchEvent(new CustomEvent('localAdminLogin', { detail: { email: 'leandrolira1991@gmail.com' } }));
-      setLoading(false);
-      return;
-    }
+    // Map usernames to emails for Firebase Auth
+    let finalEmail = email;
+    if (email === 'admin') finalEmail = 'admin@loja.com';
+    else if (email === 'leandrolira') finalEmail = 'leandrolira@loja.com';
+    else if (!email.includes('@')) finalEmail = `${email}@loja.com`;
 
     try {
       if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email.includes('@') ? email : `${email}@admin.com`, password);
+        await createUserWithEmailAndPassword(auth, finalEmail, password);
       } else {
-        await signInWithEmailAndPassword(auth, email.includes('@') ? email : `${email}@admin.com`, password);
+        try {
+          await signInWithEmailAndPassword(auth, finalEmail, password);
+        } catch (signInErr: any) {
+          // If it's a known admin account and doesn't exist, create it automatically
+          if (signInErr.code === 'auth/user-not-found' && (email === 'admin' || email === 'leandrolira')) {
+            await createUserWithEmailAndPassword(auth, finalEmail, password);
+          } else {
+            throw signInErr;
+          }
+        }
       }
       onClose();
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError('E-mail ou senha inválidos.');
+        setError('Login ou senha inválidos.');
       } else if (err.code === 'auth/email-already-in-use') {
-        setError('Este e-mail já está em uso.');
+        setError('Este usuário já está em uso.');
       } else if (err.code === 'auth/weak-password') {
         setError('A senha deve ter pelo menos 6 caracteres.');
       } else {
@@ -1656,8 +1685,8 @@ function LoginModal({ onClose }: { onClose: () => void }) {
 // --- Main App ---
 
 export default function App() {
-  const ADMIN_EMAIL = 'leandrolira1991@gmail.com';
-  const [user, setUser] = useState<any>(null);
+  const ADMIN_EMAILS = ['leandrolira1991@gmail.com', 'admin@loja.com', 'leandrolira@loja.com'];
+  const [user, setUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -1684,7 +1713,7 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState('Todas');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const isAdmin = user && ADMIN_EMAILS.includes(user.email || '');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1695,12 +1724,6 @@ export default function App() {
       }
     });
 
-    const handleLocalAdmin = (e: any) => {
-      setUser(e.detail);
-    };
-
-    window.addEventListener('localAdminLogin', handleLocalAdmin);
-
     // Handle /admin link access
     if (window.location.pathname === '/admin') {
       setIsLoginOpen(true);
@@ -1710,7 +1733,6 @@ export default function App() {
 
     return () => {
       unsubscribe();
-      window.removeEventListener('localAdminLogin', handleLocalAdmin);
     };
   }, []);
 
