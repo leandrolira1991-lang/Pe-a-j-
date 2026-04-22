@@ -1536,7 +1536,7 @@ function PromotionsCarousel({ banners }: { banners: Banner[] }) {
   );
 }
 
-function LoginModal({ onClose }: { onClose: () => void }) {
+function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess?: () => void }) {
   const [email, setEmail] = useState(() => localStorage.getItem('admin_email') || 'leandrolira91');
   const [password] = useState('123456');
   const [loading, setLoading] = useState(false);
@@ -1568,13 +1568,14 @@ function LoginModal({ onClose }: { onClose: () => void }) {
           throw signInErr;
         }
       }
+      if (onSuccess) onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/operation-not-allowed') {
         setError('Erro: Ative o login por e-mail no Firebase Console.');
       } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError('Identificador inválido.');
+        setError('Identificador inválido ou senha alterada.');
       } else {
         setError('Erro ao entrar. Verifique sua conexão.');
       }
@@ -2043,7 +2044,10 @@ export default function App() {
           />
         )}
         {isLoginOpen && (
-          <LoginModal onClose={() => setIsLoginOpen(false)} />
+          <LoginModal 
+            onClose={() => setIsLoginOpen(false)} 
+            onSuccess={() => setIsAdminPanel(true)}
+          />
         )}
       </AnimatePresence>
 
