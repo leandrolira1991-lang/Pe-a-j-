@@ -1,9 +1,9 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingCart, LogIn, Plus, LogOut, Package, Trash2, Edit2, MapPin, User as UserIcon, Phone, Home, CheckCircle2, Settings as SettingsIcon, X, Eye, EyeOff } from 'lucide-react';
+import { ShoppingCart, LogIn, Plus, LogOut, Package, Trash2, Edit2, MapPin, User as UserIcon, Phone, Home, CheckCircle2, Settings as SettingsIcon, X } from 'lucide-react';
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from './lib/firebase';
-import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { signOut, onAuthStateChanged, User, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { Product, CartItem, Customer, AppSettings, Combo, Banner } from './types';
 import { cn, formatCurrency, getWhatsAppUrl } from './lib/utils';
 import * as XLSX from 'xlsx';
@@ -11,7 +11,7 @@ import { ImageUpload } from './components/ImageUpload';
 
 // --- Components ---
 
-function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName, logoUrl, onShowLogin, user, isAdmin, onGoogleLogin }: { 
+function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName, logoUrl, onShowLogin, user, isAdmin }: { 
   cartCount: number; 
   onOpenCart: () => void; 
   isAdminPanel: boolean;
@@ -21,7 +21,6 @@ function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName,
   onShowLogin: () => void;
   user: User | null;
   isAdmin: boolean;
-  onGoogleLogin: () => void;
 }) {
   const [clickCount, setClickCount] = useState(0);
   const handleLogout = () => signOut(auth);
@@ -89,17 +88,9 @@ function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName,
             <div className="flex items-center gap-2">
               <button 
                 onClick={onShowLogin}
-                className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase text-white/50 hover:bg-white/10 transition-all sm:block hidden"
+                className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase text-white/50 hover:bg-white/10 transition-all"
               >
-                Admin
-              </button>
-              <button 
-                onClick={onGoogleLogin}
-                className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 px-3"
-                title="Sincronizar com Google"
-              >
-                <img src="https://www.google.com/favicon.ico" className="w-4 h-4 grayscale opacity-50 group-hover:opacity-100" />
-                <span className="text-[10px] font-black uppercase text-white/30 hidden sm:inline">Google</span>
+                Painel Admin
               </button>
             </div>
           )}
@@ -197,22 +188,24 @@ function ProductModal({ product, onClose, onAddToCart }: {
                     <button 
                       onClick={() => setTemp('cold')}
                       className={cn(
-                        "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase flex items-center justify-center gap-2",
+                        "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase flex flex-col items-center justify-center gap-1",
                         temp === 'cold' ? "border-brand-primary bg-brand-primary/10 text-brand-primary shadow-lg shadow-brand-primary/10" : "border-white/5 bg-white/5 text-white/30"
                       )}
                     >
-                      ❄️ Gelada
+                      <span>❄️ Gelada</span>
+                      <span className="text-[9px] opacity-70">{formatCurrency(type === 'unit' ? product.priceCold : (product.pricePackCold || 0))}</span>
                     </button>
                   )}
                   {product.priceNatural > 0 && (
                     <button 
                       onClick={() => setTemp('natural')}
                       className={cn(
-                        "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase flex items-center justify-center gap-2",
+                        "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase flex flex-col items-center justify-center gap-1",
                         temp === 'natural' ? "border-brand-primary bg-brand-primary/10 text-brand-primary shadow-lg shadow-brand-primary/10" : "border-white/5 bg-white/5 text-white/30"
                       )}
                     >
-                      📦 Natural
+                      <span>📦 Natural</span>
+                      <span className="text-[9px] opacity-70">{formatCurrency(type === 'unit' ? product.priceNatural : (product.pricePackNatural || 0))}</span>
                     </button>
                   )}
                   {product.priceHot && product.priceHot > 0 && (
@@ -237,20 +230,26 @@ function ProductModal({ product, onClose, onAddToCart }: {
                   <button 
                     onClick={() => setType('unit')}
                     className={cn(
-                      "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase",
+                      "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase flex flex-col items-center justify-center gap-1",
                       type === 'unit' ? "border-brand-primary bg-brand-primary/10 text-brand-primary shadow-lg shadow-brand-primary/10" : "border-white/5 bg-white/5 text-white/30"
                     )}
                   >
-                    Unidade
+                    <span>Unidade</span>
+                    <span className="text-[9px] opacity-70">
+                      {formatCurrency(temp === 'cold' ? product.priceCold : (temp === 'natural' ? product.priceNatural : (product.priceHot || 0)))}
+                    </span>
                   </button>
                   <button 
                     onClick={() => setType('pack')}
                     className={cn(
-                      "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase flex flex-col items-center justify-center leading-tight",
+                      "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase flex flex-col items-center justify-center leading-tight gap-1",
                       type === 'pack' ? "border-brand-primary bg-brand-primary/10 text-brand-primary shadow-lg shadow-brand-primary/10" : "border-white/5 bg-white/5 text-white/30"
                     )}
                   >
                     <span>Pacote ({product.packQuantity} uni)</span>
+                    <span className="text-[9px] opacity-70">
+                      {formatCurrency(temp === 'cold' ? (product.pricePackCold || 0) : (product.pricePackNatural || 0))}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1537,12 +1536,9 @@ function PromotionsCarousel({ banners }: { banners: Banner[] }) {
   );
 }
 
-function LoginModal({ onClose, onGoogleLogin }: { onClose: () => void; onGoogleLogin: () => void }) {
-  const [email, setEmail] = useState(() => localStorage.getItem('admin_email') || 'leandrolira1991@gmail.com');
-  const [password, setPassword] = useState(() => localStorage.getItem('admin_pass') || '12345');
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+function LoginModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState(() => localStorage.getItem('admin_email') || 'leandrolira91');
+  const [password] = useState('123456');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -1551,56 +1547,41 @@ function LoginModal({ onClose, onGoogleLogin }: { onClose: () => void; onGoogleL
     setLoading(true);
     setError('');
 
-    if (rememberMe) {
-      localStorage.setItem('admin_email', email);
-      localStorage.setItem('admin_pass', password);
-    } else {
-      localStorage.removeItem('admin_email');
-      localStorage.removeItem('admin_pass');
-    }
+    localStorage.setItem('admin_email', email);
 
     // Map usernames to emails for Firebase Auth
     let finalEmail = email;
     if (email === 'admin') finalEmail = 'admin@loja.com';
     else if (email === 'leandrolira') finalEmail = 'leandrolira@loja.com';
+    else if (email === 'leandrolira91') finalEmail = 'leandrolira91@loja.com';
     else if (!email.includes('@')) finalEmail = `${email}@loja.com`;
 
     try {
-      if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, finalEmail, password);
-      } else {
-        try {
-          await signInWithEmailAndPassword(auth, finalEmail, password);
-        } catch (signInErr: any) {
-          // If it's a known admin account and doesn't exist, create it automatically
-          const adminSlugs = ['admin', 'leandrolira', 'leandrolira1991@gmail.com'];
-          if (signInErr.code === 'auth/user-not-found' && adminSlugs.includes(email)) {
-            await createUserWithEmailAndPassword(auth, finalEmail, password);
-          } else {
-            throw signInErr;
-          }
+      try {
+        await signInWithEmailAndPassword(auth, finalEmail, password);
+      } catch (signInErr: any) {
+        // If it's a known admin account and doesn't exist, create it automatically
+        const adminSlugs = ['admin', 'leandrolira', 'leandrolira91', 'leandrolira1991@gmail.com'];
+        if (signInErr.code === 'auth/user-not-found' && adminSlugs.includes(email)) {
+          await createUserWithEmailAndPassword(auth, finalEmail, password);
+        } else {
+          throw signInErr;
         }
       }
       onClose();
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/operation-not-allowed') {
-        setError('Erro: O login por e-mail precisa ser ativado no Console do Firebase (Authentication > Sign-in method).');
+        setError('Erro: Ative o login por e-mail no Firebase Console.');
       } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError('Login ou senha inválidos.');
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError('Este usuário já está em uso.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('A senha deve ter pelo menos 6 caracteres.');
+        setError('Identificador inválido.');
       } else {
-        setError('Ocorreu um erro ao tentar entrar. Tente novamente.');
+        setError('Erro ao entrar. Verifique sua conexão.');
       }
     } finally {
       setLoading(false);
     }
   };
-
-  const handleGoogleLogin = onGoogleLogin;
 
   return (
     <motion.div 
@@ -1620,47 +1601,25 @@ function LoginModal({ onClose, onGoogleLogin }: { onClose: () => void; onGoogleL
         <div className="p-8">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">
-                {isSignUp ? 'Criar Conta' : 'Página do Admin'}
-              </h2>
-              <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mt-1">Acesso Restrito</p>
+              <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">Painel Admin</h2>
+              <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mt-1">Acesso Direto</p>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors text-white/30 hover:text-white">
               <X size={20} />
             </button>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-white/30 ml-4 tracking-widest">Login / E-mail</label>
+              <label className="text-[10px] font-black uppercase text-white/30 ml-4 tracking-widest">Identificador de Acesso</label>
               <input 
                 type="text" 
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-brand-primary outline-none transition-all placeholder:text-white/10"
-                placeholder="admin ou seu@email.com"
+                placeholder="Ex: leandrolira91"
               />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-white/30 ml-4 tracking-widest">Senha</label>
-              <div className="relative">
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-brand-primary outline-none transition-all placeholder:text-white/10 pr-12"
-                  placeholder="••••••••"
-                />
-                <button 
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
             </div>
 
             {error && (
@@ -1669,51 +1628,14 @@ function LoginModal({ onClose, onGoogleLogin }: { onClose: () => void; onGoogleL
               </p>
             )}
 
-            <div className="flex items-center gap-2 px-4">
-              <input 
-                type="checkbox" 
-                id="remember" 
-                checked={rememberMe}
-                onChange={e => setRememberMe(e.target.checked)}
-                className="w-4 h-4 accent-brand-primary rounded bg-white/5 border-white/10"
-              />
-              <label htmlFor="remember" className="text-[10px] font-bold uppercase text-white/30 tracking-widest cursor-pointer select-none">
-                Lembrar meus dados
-              </label>
-            </div>
-
             <button 
               type="submit"
               disabled={loading}
               className="w-full bg-brand-primary text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
             >
-              {loading ? 'Aguarde...' : (isSignUp ? 'Cadastrar' : 'Entrar')}
+              {loading ? 'Acessando...' : 'Acessar Painel'}
             </button>
           </form>
-
-          <div className="mt-6 flex items-center gap-4">
-            <div className="h-[1px] flex-1 bg-white/5"></div>
-            <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Ou entre com</span>
-            <div className="h-[1px] flex-1 bg-white/5"></div>
-          </div>
-
-          <button 
-            onClick={handleGoogleLogin}
-            className="w-full mt-6 bg-white/5 border border-white/10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-white/10 transition-all"
-          >
-            <img src="https://www.google.com/favicon.ico" className="w-4 h-4 grayscale" />
-            Google
-          </button>
-
-          <p className="mt-8 text-center text-[10px] font-bold text-white/20 uppercase tracking-widest">
-            {isSignUp ? 'Já tem uma conta?' : 'Não tem uma conta?'}
-            <button 
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="ml-2 text-brand-primary hover:underline"
-            >
-              {isSignUp ? 'Entrar' : 'Cadastrar'}
-            </button>
-          </p>
         </div>
       </motion.div>
     </motion.div>
@@ -1723,7 +1645,7 @@ function LoginModal({ onClose, onGoogleLogin }: { onClose: () => void; onGoogleL
 // --- Main App ---
 
 export default function App() {
-  const ADMIN_EMAILS = ['leandrolira1991@gmail.com', 'admin@loja.com', 'leandrolira@loja.com'];
+  const ADMIN_EMAILS = ['leandrolira1991@gmail.com', 'admin@loja.com', 'leandrolira@loja.com', 'leandrolira91@loja.com'];
   const [user, setUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
@@ -1753,19 +1675,6 @@ export default function App() {
   
   const isAdmin = user && ADMIN_EMAILS.includes(user.email || '');
   const [loading, setLoading] = useState(true);
-
-  const handleGoogleLogin = async () => {
-    try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-      setIsLoginOpen(false);
-    } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/cancelled-popup-request' || err.code === 'auth/popup-closed-by-user') {
-        return; // Ignore user cancellation
-      }
-      alert('Erro ao entrar com Google. Verifique se os popups estão permitidos.');
-    }
-  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -1920,7 +1829,6 @@ export default function App() {
         onShowLogin={() => setIsLoginOpen(true)}
         user={user}
         isAdmin={isAdmin}
-        onGoogleLogin={handleGoogleLogin}
       />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
@@ -2047,15 +1955,44 @@ export default function App() {
                         <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.1em] mb-1">{product.category}</p>
                         <h3 className="font-bold text-base uppercase leading-tight line-clamp-2">{product.name}</h3>
                         
-                        <div className="mt-auto pt-4 flex flex-col gap-1.5">
-                           <div className="flex justify-between items-center text-[11px]">
-                             <span className="text-white/40 italic font-medium">Gelado:</span>
-                             <span className="text-brand-primary font-bold">{formatCurrency(product.priceCold)}</span>
-                           </div>
-                           <div className="flex justify-between items-center text-[11px]">
-                             <span className="text-white/40 font-medium">Natural:</span>
-                             <span className="text-white/60 font-medium">{formatCurrency(product.priceNatural)}</span>
-                           </div>
+                        <div className="mt-auto pt-4 flex flex-col gap-1">
+                           {/* Unidade Section */}
+                           {(product.priceCold > 0 || product.priceNatural > 0) && (
+                             <div className="space-y-1">
+                               <p className="text-[8px] font-black uppercase text-white/20 tracking-widest mb-1 italic">Unidade</p>
+                               {product.priceCold > 0 && (
+                                 <div className="flex justify-between items-center text-[10px]">
+                                   <span className="text-white/40 italic font-medium">Gelada:</span>
+                                   <span className="text-brand-primary font-bold">{formatCurrency(product.priceCold)}</span>
+                                 </div>
+                               )}
+                               {product.priceNatural > 0 && (
+                                 <div className="flex justify-between items-center text-[10px]">
+                                   <span className="text-white/40 font-medium">Natural:</span>
+                                   <span className="text-white/60 font-medium">{formatCurrency(product.priceNatural)}</span>
+                                 </div>
+                               )}
+                             </div>
+                           )}
+
+                           {/* Pacote Section */}
+                           {(product.pricePackCold || product.pricePackNatural) && (
+                             <div className="mt-2 space-y-1 border-t border-white/5 pt-2">
+                               <p className="text-[8px] font-black uppercase text-white/20 tracking-widest mb-1 italic">Pacote ({product.packQuantity} uni)</p>
+                               {product.pricePackCold && product.pricePackCold > 0 && (
+                                 <div className="flex justify-between items-center text-[10px]">
+                                   <span className="text-white/40 italic font-medium">Gelado:</span>
+                                   <span className="text-brand-primary font-bold">{formatCurrency(product.pricePackCold)}</span>
+                                 </div>
+                               )}
+                               {product.pricePackNatural && product.pricePackNatural > 0 && (
+                                 <div className="flex justify-between items-center text-[10px]">
+                                   <span className="text-white/40 font-medium">Natural:</span>
+                                   <span className="text-white/60 font-medium">{formatCurrency(product.pricePackNatural)}</span>
+                                 </div>
+                               )}
+                             </div>
+                           )}
                            
                            <button className="mt-3 w-full bg-white/5 border border-white/10 group-hover:bg-brand-primary group-hover:text-black group-hover:border-brand-primary py-2.5 rounded-xl text-[10px] font-black uppercase transition-all">
                              Adicionar
@@ -2106,7 +2043,7 @@ export default function App() {
           />
         )}
         {isLoginOpen && (
-          <LoginModal onClose={() => setIsLoginOpen(false)} onGoogleLogin={handleGoogleLogin} />
+          <LoginModal onClose={() => setIsLoginOpen(false)} />
         )}
       </AnimatePresence>
 
