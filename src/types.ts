@@ -5,6 +5,7 @@ export interface Product {
   imageUrl: string;
   priceNatural: number;
   priceCold: number;
+  priceHot?: number;
   packQuantity?: number;
   pricePackNatural?: number;
   pricePackCold?: number;
@@ -16,7 +17,7 @@ export interface CartItem {
   product: Product;
   quantity: number;
   type: 'unit' | 'pack';
-  temp: 'natural' | 'cold';
+  temp: 'natural' | 'cold' | 'hot';
 }
 
 export interface Customer {

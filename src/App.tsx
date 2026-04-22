@@ -110,10 +110,13 @@ function ProductModal({ product, onClose, onAddToCart }: {
 }) {
   const [quantity, setQuantity] = useState(1);
   const [type, setType] = useState<'unit' | 'pack'>('unit');
-  const [temp, setTemp] = useState<'natural' | 'cold'>('cold');
+  
+  // Set initial temp based on available prices
+  const initialTemp = product.priceCold > 0 ? 'cold' : (product.priceNatural > 0 ? 'natural' : (product.priceHot ? 'hot' : 'cold'));
+  const [temp, setTemp] = useState<'natural' | 'cold' | 'hot'>(initialTemp);
 
   const currentPrice = type === 'unit' 
-    ? (temp === 'cold' ? product.priceCold : product.priceNatural)
+    ? (temp === 'cold' ? product.priceCold : (temp === 'natural' ? product.priceNatural : (product.priceHot || 0)))
     : (temp === 'cold' ? (product.pricePackCold || 0) : (product.pricePackNatural || 0));
 
   const handleAdd = () => {
@@ -166,29 +169,46 @@ function ProductModal({ product, onClose, onAddToCart }: {
           </div>
 
           <div className="space-y-6">
-            <div>
-              <p className="text-[10px] font-black uppercase mb-3 text-white/30 tracking-widest">Escolha a Temperatura</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button 
-                  onClick={() => setTemp('cold')}
-                  className={cn(
-                    "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase flex items-center justify-center gap-2",
-                    temp === 'cold' ? "border-brand-primary bg-brand-primary/10 text-brand-primary shadow-lg shadow-brand-primary/10" : "border-white/5 bg-white/5 text-white/30"
+            {(product.priceCold > 0 || product.priceNatural > 0 || (product.priceHot && product.priceHot > 0)) && (
+              <div>
+                <p className="text-[10px] font-black uppercase mb-3 text-white/30 tracking-widest">Escolha a Opção</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {product.priceCold > 0 && (
+                    <button 
+                      onClick={() => setTemp('cold')}
+                      className={cn(
+                        "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase flex items-center justify-center gap-2",
+                        temp === 'cold' ? "border-brand-primary bg-brand-primary/10 text-brand-primary shadow-lg shadow-brand-primary/10" : "border-white/5 bg-white/5 text-white/30"
+                      )}
+                    >
+                      ❄️ Gelada
+                    </button>
                   )}
-                >
-                  ❄️ Gelada
-                </button>
-                <button 
-                  onClick={() => setTemp('natural')}
-                  className={cn(
-                    "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase flex items-center justify-center gap-2",
-                    temp === 'natural' ? "border-brand-primary bg-brand-primary/10 text-brand-primary shadow-lg shadow-brand-primary/10" : "border-white/5 bg-white/5 text-white/30"
+                  {product.priceNatural > 0 && (
+                    <button 
+                      onClick={() => setTemp('natural')}
+                      className={cn(
+                        "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase flex items-center justify-center gap-2",
+                        temp === 'natural' ? "border-brand-primary bg-brand-primary/10 text-brand-primary shadow-lg shadow-brand-primary/10" : "border-white/5 bg-white/5 text-white/30"
+                      )}
+                    >
+                      📦 Natural
+                    </button>
                   )}
-                >
-                  📦 Natural
-                </button>
+                  {product.priceHot && product.priceHot > 0 && (
+                    <button 
+                      onClick={() => setTemp('hot')}
+                      className={cn(
+                        "py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase flex items-center justify-center gap-2",
+                        temp === 'hot' ? "border-brand-primary bg-brand-primary/10 text-brand-primary shadow-lg shadow-brand-primary/10" : "border-white/5 bg-white/5 text-white/30"
+                      )}
+                    >
+                      🔥 Quente
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {product.packQuantity && (
               <div>
@@ -259,7 +279,7 @@ function CartDrawer({ cart, customer, settings, onClose, onRemove, onClear, onOp
 
   const subtotal = cart.reduce((acc, item) => {
     const price = item.type === 'unit' 
-      ? (item.temp === 'cold' ? item.product.priceCold : item.product.priceNatural)
+      ? (item.temp === 'cold' ? item.product.priceCold : (item.temp === 'natural' ? item.product.priceNatural : (item.product.priceHot || 0)))
       : (item.temp === 'cold' ? (item.product.pricePackCold || 0) : (item.product.pricePackNatural || 0));
     return acc + (price * item.quantity);
   }, 0);
@@ -301,16 +321,17 @@ function CartDrawer({ cart, customer, settings, onClose, onRemove, onClear, onOp
     
     cart.forEach(item => {
       const unitPrice = item.type === 'unit' 
-        ? (item.temp === 'cold' ? item.product.priceCold : item.product.priceNatural)
+        ? (item.temp === 'cold' ? item.product.priceCold : (item.temp === 'natural' ? item.product.priceNatural : (item.product.priceHot || 0)))
         : (item.temp === 'cold' ? (item.product.pricePackCold || 0) : (item.product.pricePackNatural || 0));
       
       const categoryEmoji = item.product.category === 'Cerveja' ? '🍺' : 
                             item.product.category === 'Destilado' ? '🥃' : 
-                            item.product.category === 'Combo' ? '⚡' : '🥤';
+                            item.product.category === 'Combo' ? '⚡' : 
+                            item.temp === 'hot' ? '☕' : '🥤';
 
       message += `*${item.quantity}x* ${item.product.name} ${categoryEmoji}\n`;
       message += `Opção: ${item.type === 'unit' ? 'Unidade' : `Pacote (${item.product.packQuantity} un)`}\n`;
-      message += `Temp: ${item.temp === 'cold' ? 'Gelada' : 'Natural'}\n`;
+      message += `Temp: ${item.temp === 'cold' ? 'Gelada' : (item.temp === 'natural' ? 'Natural' : 'Quente')}\n`;
       message += `Preço un: ${formatCurrency(unitPrice)}\n`;
       message += `Subtotal: ${formatCurrency(unitPrice * item.quantity)}\n`;
       message += "------------------\n";
@@ -358,7 +379,7 @@ function CartDrawer({ cart, customer, settings, onClose, onRemove, onClear, onOp
           ) : (
             cart.map(item => {
                const price = item.type === 'unit' 
-                ? (item.temp === 'cold' ? item.product.priceCold : item.product.priceNatural)
+                ? (item.temp === 'cold' ? item.product.priceCold : (item.temp === 'natural' ? item.product.priceNatural : (item.product.priceHot || 0)))
                 : (item.temp === 'cold' ? (item.product.pricePackCold || 0) : (item.product.pricePackNatural || 0));
                 return (
                   <div key={item.id} className="flex gap-4 p-4 bg-white/5 border border-white/5 rounded-2xl relative group">
@@ -366,7 +387,7 @@ function CartDrawer({ cart, customer, settings, onClose, onRemove, onClear, onOp
                     <div className="flex-1">
                       <p className="font-bold uppercase text-[13px] leading-tight pr-6">{item.product.name}</p>
                       <p className="text-[9px] text-white/30 font-black uppercase mt-1.5 tracking-wider">
-                        {item.quantity}x {item.type === 'unit' ? 'Uni' : 'Pkt'} • {item.temp === 'cold' ? 'Gelada' : 'Natural'}
+                        {item.quantity}x {item.type === 'unit' ? 'Uni' : 'Pkt'} • {item.temp === 'cold' ? 'Gelada' : (item.temp === 'natural' ? 'Natural' : 'Quente')}
                       </p>
                       <p className="font-black text-brand-primary mt-1.5">{formatCurrency(price * item.quantity)}</p>
                     </div>
@@ -536,6 +557,7 @@ function AdminPanel({ products, combos, banners, settings, onUpdateSettings, onS
     imageUrl: '',
     priceNatural: 0,
     priceCold: 0,
+    priceHot: 0,
     packQuantity: 12,
     pricePackNatural: 0,
     pricePackCold: 0,
@@ -559,16 +581,28 @@ function AdminPanel({ products, combos, banners, settings, onUpdateSettings, onS
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     try {
+      const dataToSave = {
+        ...formData,
+        priceNatural: Number(formData.priceNatural) || 0,
+        priceCold: Number(formData.priceCold) || 0,
+        priceHot: Number(formData.priceHot) || 0,
+        packQuantity: Number(formData.packQuantity) || 0,
+        pricePackNatural: Number(formData.pricePackNatural) || 0,
+        pricePackCold: Number(formData.pricePackCold) || 0,
+      };
+
       if (editingProduct) {
-        await updateDoc(doc(db, 'products', editingProduct.id), formData);
+        await updateDoc(doc(db, 'products', editingProduct.id), dataToSave);
       } else {
-        await addDoc(collection(db, 'products'), formData);
+        await addDoc(collection(db, 'products'), dataToSave);
       }
       setIsAdding(false);
       setEditingProduct(null);
-      setFormData({ name: '', category: 'Cerveja', imageUrl: '', priceNatural: 0, priceCold: 0, packQuantity: 12, pricePackNatural: 0, pricePackCold: 0, isCombo: false });
-    } catch (e) {
-      console.error(e);
+      setFormData({ name: '', category: 'Cerveja', imageUrl: '', priceNatural: 0, priceCold: 0, priceHot: 0, packQuantity: 12, pricePackNatural: 0, pricePackCold: 0, isCombo: false });
+      alert("Produto salvo com sucesso!");
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao salvar o produto.");
     }
   };
 
@@ -747,9 +781,10 @@ function AdminPanel({ products, combos, banners, settings, onUpdateSettings, onS
                 <div className="flex-1 flex flex-col justify-center">
                   <h3 className="font-bold uppercase text-[13px] leading-none mb-2">{p.name}</h3>
                   <p className="text-[10px] text-white/30 font-black uppercase tracking-wider">{p.category}</p>
-                  <div className="flex gap-2 mt-3">
-                    <span className="text-[9px] font-black bg-white/5 text-brand-primary px-2 py-1 rounded border border-white/5 uppercase">Gel: {formatCurrency(p.priceCold)}</span>
-                    <span className="text-[9px] font-black bg-white/5 text-white/50 px-2 py-1 rounded border border-white/5 uppercase">Nat: {formatCurrency(p.priceNatural)}</span>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {p.priceCold > 0 && <span className="text-[9px] font-black bg-white/5 text-brand-primary px-2 py-1 rounded border border-white/5 uppercase">Gel: {formatCurrency(p.priceCold)}</span>}
+                    {p.priceNatural > 0 && <span className="text-[9px] font-black bg-white/5 text-white/50 px-2 py-1 rounded border border-white/5 uppercase">Nat: {formatCurrency(p.priceNatural)}</span>}
+                    {p.priceHot && p.priceHot > 0 && <span className="text-[9px] font-black bg-white/5 text-orange-500 px-2 py-1 rounded border border-white/5 uppercase">Qte: {formatCurrency(p.priceHot)}</span>}
                   </div>
                 </div>
                 <div className="flex gap-2 absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1024,14 +1059,18 @@ function AdminPanel({ products, combos, banners, settings, onUpdateSettings, onS
                 onChange={val => setFormData({...formData, imageUrl: val})} 
               />
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Preço Natural</label>
-                    <input type="number" step="0.01" required value={formData.priceNatural} onChange={e => setFormData({...formData, priceNatural: Number(e.target.value)})} className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" />
+                    <input type="number" step="0.01" value={formData.priceNatural} onChange={e => setFormData({...formData, priceNatural: Number(e.target.value)})} className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" />
                  </div>
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Preço Gelado</label>
-                    <input type="number" step="0.01" required value={formData.priceCold} onChange={e => setFormData({...formData, priceCold: Number(e.target.value)})} className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" />
+                    <input type="number" step="0.01" value={formData.priceCold} onChange={e => setFormData({...formData, priceCold: Number(e.target.value)})} className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" />
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Preço Quente</label>
+                    <input type="number" step="0.01" value={formData.priceHot} onChange={e => setFormData({...formData, priceHot: Number(e.target.value)})} className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" />
                  </div>
               </div>
 
