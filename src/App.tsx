@@ -84,6 +84,15 @@ function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName,
             </div>
           )}
 
+          {!isAdmin && (
+            <button 
+              onClick={onShowLogin}
+              className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase text-white/50 hover:bg-white/10 transition-all"
+            >
+              Admin
+            </button>
+          )}
+
           {!isAdminPanel && (
             <button 
               onClick={onOpenCart} 
@@ -1518,10 +1527,11 @@ function PromotionsCarousel({ banners }: { banners: Banner[] }) {
 }
 
 function LoginModal({ onClose }: { onClose: () => void }) {
-  const [email, setEmail] = useState('admin');
-  const [password, setPassword] = useState('12345');
+  const [email, setEmail] = useState(() => localStorage.getItem('admin_email') || 'leandrolira1991@gmail.com');
+  const [password, setPassword] = useState(() => localStorage.getItem('admin_pass') || '12345');
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -1529,6 +1539,14 @@ function LoginModal({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    if (rememberMe) {
+      localStorage.setItem('admin_email', email);
+      localStorage.setItem('admin_pass', password);
+    } else {
+      localStorage.removeItem('admin_email');
+      localStorage.removeItem('admin_pass');
+    }
 
     // Map usernames to emails for Firebase Auth
     let finalEmail = email;
@@ -1544,7 +1562,8 @@ function LoginModal({ onClose }: { onClose: () => void }) {
           await signInWithEmailAndPassword(auth, finalEmail, password);
         } catch (signInErr: any) {
           // If it's a known admin account and doesn't exist, create it automatically
-          if (signInErr.code === 'auth/user-not-found' && (email === 'admin' || email === 'leandrolira')) {
+          const adminSlugs = ['admin', 'leandrolira', 'leandrolira1991@gmail.com'];
+          if (signInErr.code === 'auth/user-not-found' && adminSlugs.includes(email)) {
             await createUserWithEmailAndPassword(auth, finalEmail, password);
           } else {
             throw signInErr;
@@ -1643,6 +1662,19 @@ function LoginModal({ onClose }: { onClose: () => void }) {
                 {error}
               </p>
             )}
+
+            <div className="flex items-center gap-2 px-4">
+              <input 
+                type="checkbox" 
+                id="remember" 
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                className="w-4 h-4 accent-brand-primary rounded bg-white/5 border-white/10"
+              />
+              <label htmlFor="remember" className="text-[10px] font-bold uppercase text-white/30 tracking-widest cursor-pointer select-none">
+                Lembrar meus dados
+              </label>
+            </div>
 
             <button 
               type="submit"
