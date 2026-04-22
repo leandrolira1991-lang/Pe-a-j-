@@ -285,7 +285,7 @@ function ProductModal({ product, onClose, onAddToCart }: {
   );
 }
 
-function CartDrawer({ cart, customer, settings, onClose, onRemove, onClear, onOpenRegistration }: { 
+function CartDrawer({ cart, customer, settings, onClose, onRemove, onClear, onOpenRegistration, onUpdateQuantity }: { 
   cart: CartItem[]; 
   customer: Customer | null;
   settings: AppSettings;
@@ -293,6 +293,7 @@ function CartDrawer({ cart, customer, settings, onClose, onRemove, onClear, onOp
   onRemove: (id: string) => void;
   onClear: () => void;
   onOpenRegistration: () => void;
+  onUpdateQuantity: (id: string, newQty: number) => void;
 }) {
   const [paymentMethod, setPaymentMethod] = useState<string>('');
 
@@ -405,10 +406,28 @@ function CartDrawer({ cart, customer, settings, onClose, onRemove, onClear, onOp
                     <img src={item.product.imageUrl} className="w-16 h-16 object-contain" />
                     <div className="flex-1">
                       <p className="font-bold uppercase text-[13px] leading-tight pr-6">{item.product.name}</p>
-                      <p className="text-[9px] text-white/30 font-black uppercase mt-1.5 tracking-wider">
-                        {item.quantity}x {item.type === 'unit' ? 'Uni' : 'Pkt'} • {item.temp === 'cold' ? 'Gelada' : (item.temp === 'natural' ? 'Natural' : 'Quente')}
-                      </p>
-                      <p className="font-black text-brand-primary mt-1.5">{formatCurrency(price * item.quantity)}</p>
+                      <div className="flex items-center gap-3 mt-1.5 font-black uppercase text-[9px] tracking-wider">
+                        <div className="flex items-center gap-1.5 bg-white/5 rounded-lg p-1 border border-white/5">
+                           <button 
+                             onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                             className="w-5 h-5 flex items-center justify-center hover:bg-white/10 rounded transition-colors text-white/40 hover:text-white"
+                           >
+                             -
+                           </button>
+                           <span className="w-4 text-center text-white/80">{item.quantity}</span>
+                           <button 
+                             onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                             className="w-5 h-5 flex items-center justify-center hover:bg-white/10 rounded transition-colors text-white/40 hover:text-white"
+                           >
+                             +
+                           </button>
+                        </div>
+                        <span className="text-white/20">|</span>
+                        <span>{item.type === 'unit' ? 'Unidade' : 'Pacote'}</span>
+                        <span className="text-white/20">|</span>
+                        <span>{item.temp === 'cold' ? 'Gelada' : (item.temp === 'natural' ? 'Natural' : 'Quente')}</span>
+                      </div>
+                      <p className="font-black text-brand-primary mt-2">{formatCurrency(price * item.quantity)}</p>
                     </div>
                     <button 
                       onClick={() => onRemove(item.id)}
@@ -596,6 +615,28 @@ function AdminPanel({ products, combos, banners, settings, onUpdateSettings, onS
     imageUrl: '',
     link: ''
   });
+
+  const formatCurrencyValue = (val: number | string | undefined) => {
+    if (val === undefined) return '';
+    if (typeof val === 'string') return val;
+    return val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const handleCurrencyChange = (
+    value: string, 
+    setter: (val: any) => void, 
+    state: any, 
+    field: string
+  ) => {
+    // Remove non-numeric characters
+    const cleanValue = value.replace(/[^\d]/g, '');
+    if (cleanValue === '') {
+      setter({ ...state, [field]: 0 });
+      return;
+    }
+    const numericValue = Number(cleanValue) / 100;
+    setter({ ...state, [field]: numericValue });
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -934,11 +975,11 @@ function AdminPanel({ products, combos, banners, settings, onUpdateSettings, onS
             <div className="space-y-2">
               <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Pedido Mínimo (R$)</label>
               <input 
-                type="number"
-                step="0.01"
+                type="text"
                 required 
-                value={settingsForm.minOrder} 
-                onChange={e => setSettingsForm({...settingsForm, minOrder: Number(e.target.value)})} 
+                value={formatCurrencyValue(settingsForm.minOrder)} 
+                onChange={e => handleCurrencyChange(e.target.value, setSettingsForm, settingsForm, 'minOrder')} 
+                placeholder="0,00"
                 className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" 
               />
             </div>
@@ -954,22 +995,22 @@ function AdminPanel({ products, combos, banners, settings, onUpdateSettings, onS
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Taxa de Entrega (R$)</label>
                 <input 
-                  type="number"
-                  step="0.01"
+                  type="text"
                   required 
-                  value={settingsForm.deliveryFee} 
-                  onChange={e => setSettingsForm({...settingsForm, deliveryFee: Number(e.target.value)})} 
+                  value={formatCurrencyValue(settingsForm.deliveryFee)} 
+                  onChange={e => handleCurrencyChange(e.target.value, setSettingsForm, settingsForm, 'deliveryFee')} 
+                  placeholder="0,00"
                   className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" 
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Frete Grátis acima de (R$)</label>
                 <input 
-                  type="number"
-                  step="0.01"
+                  type="text"
                   required 
-                  value={settingsForm.freeDeliveryThreshold} 
-                  onChange={e => setSettingsForm({...settingsForm, freeDeliveryThreshold: Number(e.target.value)})} 
+                  value={formatCurrencyValue(settingsForm.freeDeliveryThreshold)} 
+                  onChange={e => handleCurrencyChange(e.target.value, setSettingsForm, settingsForm, 'freeDeliveryThreshold')} 
+                  placeholder="0,00"
                   className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" 
                 />
               </div>
@@ -1110,15 +1151,33 @@ function AdminPanel({ products, combos, banners, settings, onUpdateSettings, onS
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Preço Natural</label>
-                    <input type="number" step="0.01" value={formData.priceNatural} onChange={e => setFormData({...formData, priceNatural: Number(e.target.value)})} className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" />
+                    <input 
+                      type="text" 
+                      value={formatCurrencyValue(formData.priceNatural)} 
+                      onChange={e => handleCurrencyChange(e.target.value, setFormData, formData, 'priceNatural')} 
+                      placeholder="0,00"
+                      className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" 
+                    />
                  </div>
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Preço Gelado</label>
-                    <input type="number" step="0.01" value={formData.priceCold} onChange={e => setFormData({...formData, priceCold: Number(e.target.value)})} className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" />
+                    <input 
+                      type="text" 
+                      value={formatCurrencyValue(formData.priceCold)} 
+                      onChange={e => handleCurrencyChange(e.target.value, setFormData, formData, 'priceCold')} 
+                      placeholder="0,00"
+                      className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" 
+                    />
                  </div>
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Preço Quente</label>
-                    <input type="number" step="0.01" value={formData.priceHot} onChange={e => setFormData({...formData, priceHot: Number(e.target.value)})} className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" />
+                    <input 
+                      type="text" 
+                      value={formatCurrencyValue(formData.priceHot)} 
+                      onChange={e => handleCurrencyChange(e.target.value, setFormData, formData, 'priceHot')} 
+                      placeholder="0,00"
+                      className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" 
+                    />
                  </div>
               </div>
 
@@ -1131,11 +1190,23 @@ function AdminPanel({ products, combos, banners, settings, onUpdateSettings, onS
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Preço Nat.</label>
-                      <input type="number" step="0.01" value={formData.pricePackNatural} onChange={e => setFormData({...formData, pricePackNatural: Number(e.target.value)})} className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" />
+                      <input 
+                        type="text" 
+                        value={formatCurrencyValue(formData.pricePackNatural)} 
+                        onChange={e => handleCurrencyChange(e.target.value, setFormData, formData, 'pricePackNatural')} 
+                        placeholder="0,00"
+                        className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" 
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Preço Gel.</label>
-                      <input type="number" step="0.01" value={formData.pricePackCold} onChange={e => setFormData({...formData, pricePackCold: Number(e.target.value)})} className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" />
+                      <input 
+                        type="text" 
+                        value={formatCurrencyValue(formData.pricePackCold)} 
+                        onChange={e => handleCurrencyChange(e.target.value, setFormData, formData, 'pricePackCold')} 
+                        placeholder="0,00"
+                        className="w-full bg-bg-input p-4 rounded-2xl border border-white/5 outline-none focus:border-brand-primary transition-colors text-sm" 
+                      />
                     </div>
                  </div>
               </div>
@@ -1806,6 +1877,10 @@ export default function App() {
     alert(`${combo.name} adicionado ao carrinho!`);
   };
 
+  const updateQuantity = (id: string, newQty: number) => {
+    setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: newQty } : item));
+  };
+
   const removeFromCart = (id: string) => {
     setCart(prev => prev.filter(i => i.id !== id));
   };
@@ -2024,6 +2099,7 @@ export default function App() {
             settings={settings}
             onClose={() => setIsCartOpen(false)} 
             onRemove={removeFromCart}
+            onUpdateQuantity={updateQuantity}
             onClear={() => setCart([])}
             onOpenRegistration={() => setIsRegistrationOpen(true)}
           />
