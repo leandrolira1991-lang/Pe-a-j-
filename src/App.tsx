@@ -1447,8 +1447,8 @@ function PromotionsCarousel({ banners }: { banners: Banner[] }) {
 }
 
 function LoginModal({ onClose }: { onClose: () => void }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('leandrolira1991@gmail.com');
+  const [password, setPassword] = useState('050607');
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
