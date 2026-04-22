@@ -1450,8 +1450,8 @@ function PromotionsCarousel({ banners }: { banners: Banner[] }) {
 }
 
 function LoginModal({ onClose }: { onClose: () => void }) {
-  const [email, setEmail] = useState('leandrolira1991@gmail.com');
-  const [password, setPassword] = useState('050607');
+  const [email, setEmail] = useState('admin');
+  const [password, setPassword] = useState('12345');
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1461,11 +1461,27 @@ function LoginModal({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    // Handle local 'admin' login
+    if (!isSignUp && email === 'admin' && password === '12345') {
+      // We'll use a mock user if using local admin credentials
+      onClose();
+      // App component will handle the state via onAuthStateChanged or we can force it
+      // Actually we need to inform App that we are logged in as admin
+      // Since App uses onAuthStateChanged, we might need a custom setter or use a special email for Firebase
+      // Let's try to sign in with a "virtual" admin email to keep Firebase logic intact if possible
+      // but the user wants "admin" as login string.
+      // Easiest is to allow App to accept a simple object.
+      window.dispatchEvent(new CustomEvent('localAdminLogin', { detail: { email: 'leandrolira1991@gmail.com' } }));
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
+        await createUserWithEmailAndPassword(auth, email.includes('@') ? email : `${email}@admin.com`, password);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, email.includes('@') ? email : `${email}@admin.com`, password);
       }
       onClose();
     } catch (err: any) {
@@ -1523,14 +1539,14 @@ function LoginModal({ onClose }: { onClose: () => void }) {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-white/30 ml-4 tracking-widest">E-mail</label>
+              <label className="text-[10px] font-black uppercase text-white/30 ml-4 tracking-widest">Login / E-mail</label>
               <input 
-                type="email" 
+                type="text" 
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-brand-primary outline-none transition-all placeholder:text-white/10"
-                placeholder="seu@email.com"
+                placeholder="admin ou seu@email.com"
               />
             </div>
             <div className="space-y-1">
@@ -1602,7 +1618,7 @@ function LoginModal({ onClose }: { onClose: () => void }) {
 
 export default function App() {
   const ADMIN_EMAIL = 'leandrolira1991@gmail.com';
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -1640,6 +1656,12 @@ export default function App() {
       }
     });
 
+    const handleLocalAdmin = (e: any) => {
+      setUser(e.detail);
+    };
+
+    window.addEventListener('localAdminLogin', handleLocalAdmin);
+
     // Handle /admin link access
     if (window.location.pathname === '/admin') {
       setIsLoginOpen(true);
@@ -1647,7 +1669,10 @@ export default function App() {
       window.history.replaceState({}, '', '/');
     }
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      window.removeEventListener('localAdminLogin', handleLocalAdmin);
+    };
   }, []);
 
   const seedProducts = async () => {
