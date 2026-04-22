@@ -11,7 +11,7 @@ import { ImageUpload } from './components/ImageUpload';
 
 // --- Components ---
 
-function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName, logoUrl, onShowLogin, user }: { 
+function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName, logoUrl, onShowLogin, user, isAdmin }: { 
   cartCount: number; 
   onOpenCart: () => void; 
   isAdminPanel: boolean;
@@ -20,6 +20,7 @@ function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName,
   logoUrl?: string;
   onShowLogin: () => void;
   user: User | null;
+  isAdmin: boolean;
 }) {
   const [clickCount, setClickCount] = useState(0);
   const handleLogout = () => signOut(auth);
@@ -66,15 +67,17 @@ function Navbar({ cartCount, onOpenCart, isAdminPanel, onToggleAdmin, storeName,
         <div className="flex items-center gap-4">
           {user && (
             <div className="flex items-center gap-2">
-              <button 
-                onClick={onToggleAdmin}
-                className={cn(
-                  "px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all",
-                  isAdminPanel ? "bg-white text-black" : "bg-white/5 text-white/70 hover:bg-white/10"
-                )}
-              >
-                {isAdminPanel ? "Ver Loja" : "Painel ADM"}
-              </button>
+              {isAdmin && (
+                <button 
+                  onClick={onToggleAdmin}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all",
+                    isAdminPanel ? "bg-white text-black" : "bg-white/5 text-white/70 hover:bg-white/10"
+                  )}
+                >
+                  {isAdminPanel ? "Ver Loja" : "Painel ADM"}
+                </button>
+              )}
               <button onClick={handleLogout} className="p-2 text-white/30 hover:text-red-500 transition-colors">
                 <LogOut size={20} />
               </button>
@@ -1598,6 +1601,7 @@ function LoginModal({ onClose }: { onClose: () => void }) {
 // --- Main App ---
 
 export default function App() {
+  const ADMIN_EMAIL = 'leandrolira1991@gmail.com';
   const [user, setUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
@@ -1625,6 +1629,7 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState('Todas');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   
+  const isAdmin = user?.email === ADMIN_EMAIL;
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1777,10 +1782,11 @@ export default function App() {
         logoUrl={settings.logoUrl}
         onShowLogin={() => setIsLoginOpen(true)}
         user={user}
+        isAdmin={isAdmin}
       />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {(isAdminPanel && user) ? (
+        {(isAdminPanel && isAdmin) ? (
           <AdminPanel 
             products={products} 
             combos={combos}
