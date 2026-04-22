@@ -1634,6 +1634,14 @@ export default function App() {
         setIsAdminPanel(false);
       }
     });
+
+    // Handle /admin link access
+    if (window.location.pathname === '/admin') {
+      setIsLoginOpen(true);
+      // Clean up URL without refreshing
+      window.history.replaceState({}, '', '/');
+    }
+
     return () => unsubscribe();
   }, []);
 
